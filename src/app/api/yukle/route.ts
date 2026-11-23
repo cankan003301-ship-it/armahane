@@ -1,5 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 const TYPES: Record<string, string> = {
   "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/svg+xml": "svg", "application/pdf": "pdf",
@@ -9,6 +10,9 @@ const MAX = 4 * 1024 * 1024;
 /** Müşteri logosu yükleme (Vercel Blob). Dosya adı rastgele; içerik türü beyaz listede. */
 export async function POST(req: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return NextResponse.json({ error: "Dosya yükleme şu an kapalı." }, { status: 503 });
+  if (!(await rateLimit("yukle", clientIp(req), 20, 3600))) {
+    return NextResponse.json({ error: "Çok fazla dosya yüklendi, lütfen biraz sonra deneyin." }, { status: 429 });
+  }
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 400 });

@@ -48,6 +48,10 @@ export type OrderRow = {
   totals: CartTotals & { couponCode: string };
   note: string | null;
   tracking: string | null;
+  proof_url: string | null;
+  proof_note: string | null;
+  /** Tasarım onayı: bekliyor | revizyon | onaylandi */
+  approval: "bekliyor" | "revizyon" | "onaylandi" | null;
   history: { at: string; status: string; by: string; note?: string }[];
   created_at: string;
   updated_at: string;
@@ -128,6 +132,28 @@ export async function listOrders(limit = 100, status?: string) {
   return (status
     ? await sql`SELECT * FROM orders WHERE status = ${status} ORDER BY created_at DESC LIMIT ${limit}`
     : await sql`SELECT * FROM orders ORDER BY created_at DESC LIMIT ${limit}`) as OrderRow[];
+}
+
+/** Yönetim: müşteriye tasarım önizlemesi gönder. */
+export async function setProof(code: string, proofUrl: string, note: string) {
+  const sql = await db();
+  const entry = JSON.stringify([{ at: new Date().toISOString(), status: "tasarim-onay", by: "yönetim", note: "Tasarım önizlemesi gönderildi" }]);
+  const rows = (await sql`UPDATE orders SET status = 'tasarim-onay', proof_url = ${proofUrl}, proof_note = ${note || null},
+      approval = 'bekliyor', history = history || ${entry}::jsonb, updated_at = now()
+    WHERE code = ${code} RETURNING *`) as OrderRow[];
+  return rows[0] ?? null;
+}
+
+/** Müşteri: önizlemeyi onayla ya da revizyon iste. Yalnızca onay bekleyen siparişte çalışır. */
+export async function answerProof(code: string, approve: boolean, message: string) {
+  const sql = await db();
+  const status = approve ? "uretimde" : "tasarim-onay";
+  const note = approve ? "Müşteri tasarımı onayladı" : `Revizyon istendi: ${message}`;
+  const entry = JSON.stringify([{ at: new Date().toISOString(), status, by: "müşteri", note }]);
+  const rows = (await sql`UPDATE orders SET status = ${status}, approval = ${approve ? "onaylandi" : "revizyon"},
+      history = history || ${entry}::jsonb, updated_at = now()
+    WHERE code = ${code} AND status = 'tasarim-onay' AND approval = 'bekliyor' RETURNING *`) as OrderRow[];
+  return rows[0] ?? null;
 }
 
 export class UserError extends Error {}

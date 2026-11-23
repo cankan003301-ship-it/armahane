@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { ipFrom, rateLimit } from "@/lib/ratelimit";
 import { getOrder, orderToken } from "@/lib/orders";
 import { dbConfigured } from "@/lib/db";
 
@@ -7,6 +9,7 @@ export const metadata: Metadata = { title: "Sipariş Takip", description: "Sipar
 
 async function find(formData: FormData) {
   "use server";
+  if (!(await rateLimit("takip", ipFrom(await headers()), 20, 600))) redirect("/siparis-takip?hata=1");
   const code = String(formData.get("code") ?? "").trim().toUpperCase().replace(/^AH(?!-)/, "AH-");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const o = dbConfigured() ? await getOrder(code) : null;

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { checkOrderToken, getOrder, statusLabel, type StatusId } from "@/lib/orders";
 import { tl } from "@/lib/pricing";
 import { whatsappLink } from "@/lib/site";
+import ProofApproval from "@/components/ProofApproval";
 
 export const metadata: Metadata = { title: "Sipariş Durumu", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 const FLOW: StatusId[] = ["odeme-bekliyor", "odendi", "tasarim-onay", "uretimde", "kargoda", "teslim"];
 
 export default async function Page({ params, searchParams }: {
-  params: Promise<{ code: string }>; searchParams: Promise<{ t?: string; yeni?: string; odeme?: string }>;
+  params: Promise<{ code: string }>; searchParams: Promise<{ t?: string; yeni?: string; odeme?: string; onay?: string }>;
 }) {
   const { code } = await params;
   const sp = await searchParams;
@@ -57,6 +58,8 @@ export default async function Page({ params, searchParams }: {
           <Link className="btn brand" href={`/odeme/kart/${o.code}?t=${sp.t}`}>Ödemeyi tamamla</Link>
         )}
 
+        <ProofApproval o={o} t={sp.t!} result={sp.onay} />
+
         {o.status !== "iptal" && (
           <div className="card">
             <ol className="timeline">
@@ -64,7 +67,7 @@ export default async function Page({ params, searchParams }: {
                 <li key={s} className={i < idx ? "done" : i === idx ? "now" : ""}>
                   <b>{statusLabel(s)}</b>
                   {s === "kargoda" && o.tracking && <div className="small">Takip: {o.tracking}</div>}
-                  {s === "tasarim-onay" && i === idx && <div className="small">Önizleme e-posta/WhatsApp ile gönderildi; onayını bekliyoruz.</div>}
+                  {s === "tasarim-onay" && i === idx && <div className="small">{o.proof_url ? "Önizleme yukarıda; onayını bekliyoruz." : "Tasarımın nakışa uyarlanıyor; önizleme hazır olunca e-posta gelecek."}</div>}
                 </li>
               ))}
             </ol>

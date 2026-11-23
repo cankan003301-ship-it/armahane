@@ -48,3 +48,18 @@ export async function mailOrderCreated(o: OrderRow) {
 export async function mailStatusChanged(o: OrderRow) {
   await sendMail(o.customer.email, `Sipariş ${o.code}: ${statusLabel(o.status)}`, orderHtml(o, `Siparişinizin durumu güncellendi: <b>${esc(statusLabel(o.status))}</b>.`));
 }
+
+export async function mailProofReady(o: OrderRow) {
+  const link = `${SITE.url}/siparis/${o.code}?t=${orderToken(o.code)}#onay`;
+  await sendMail(o.customer.email, `Tasarım önizlemeniz hazır — ${o.code}`,
+    `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#222"><h2>${esc(SITE.name)}</h2>
+    <p>Armanızın nakışa uyarlanmış önizlemesi hazır. Onayınızdan sonra üretime başlayacağız.</p>
+    ${o.proof_url ? `<p><img src="${esc(o.proof_url)}" alt="Önizleme" style="max-width:100%;border-radius:8px"></p>` : ""}
+    ${o.proof_note ? `<p>${esc(o.proof_note)}</p>` : ""}
+    <p><a href="${link}" style="background:#c8452c;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px">Onayla veya revizyon iste</a></p></div>`);
+}
+
+export async function mailShop(subject: string, text: string) {
+  const to = process.env.SHOP_NOTIFY_EMAIL;
+  if (to) await sendMail(to, subject, `<p style="font-family:Arial,sans-serif;white-space:pre-wrap">${esc(text)}</p>`);
+}

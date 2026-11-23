@@ -1,13 +1,17 @@
 "use server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { ipFrom, rateLimit } from "@/lib/ratelimit";
 import { revalidatePath } from "next/cache";
 import { checkPassword, endSession, requireAdmin, startSession } from "@/lib/admin";
-import { STATUSES, setOrderStatus, type StatusId } from "@/lib/orders";
-import { mailStatusChanged } from "@/lib/mail";
+import { put } from "@vercel/blob";
+import { STATUSES, setOrderStatus, setProof, type StatusId } from "@/lib/orders";
+import { mailProofReady, mailStatusChanged } from "@/lib/mail";
 import { db } from "@/lib/db";
 
 export async function login(formData: FormData) {
   await new Promise((r) => setTimeout(r, 400)); // kaba kuvvet denemelerini yavaşlat
+  if (!(await rateLimit("giris", ipFrom(await headers()), 10, 900))) redirect("/yonetim/giris?hata=1");
   if (!checkPassword(String(formData.get("password") ?? ""))) redirect("/yonetim/giris?hata=1");
   await startSession();
   redirect("/yonetim");
@@ -40,4 +44,20 @@ export async function updateQuote(formData: FormData) {
   const sql = await db();
   await sql`UPDATE quotes SET status = ${status} WHERE id = ${id}`;
   revalidatePath("/yonetim/teklifler");
+}
+
+const PROOF_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
+export async function uploadProof(formData: FormData) {
+  await requireAdmin();
+  const code = String(formData.get("code") ?? "");
+  const file = formData.get("proof");
+  const note = String(formData.get("proofNote") ?? "").trim().slice(0, 600);
+  if (!(file instanceof File) || !PROOF_TYPES[file.type] || file.size > 8 * 1024 * 1024) redirect(`/yonetim/siparis/${code}?hata=onizleme`);
+  if (!process.env.BLOB_READ_WRITE_TOKEN) redirect(`/yonetim/siparis/${code}?hata=blob`);
+  const blob = await put(`onizleme/${code}/${crypto.randomUUID()}.${PROOF_TYPES[file.type]}`, file, { access: "public", contentType: file.type, addRandomSuffix: false });
+  const updated = await setProof(code, blob.url, note);
+  if (updated) await mailProofReady(updated);
+  revalidatePath(`/yonetim/siparis/${code}`);
+  redirect(`/yonetim/siparis/${code}?ok=1`);
 }

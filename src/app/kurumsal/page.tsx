@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { ipFrom, rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { db, dbConfigured } from "@/lib/db";
 import { sendMail } from "@/lib/mail";
@@ -27,6 +29,7 @@ async function submit(formData: FormData) {
   const parsed = Schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/kurumsal?hata=1#form");
   const d = parsed.data;
+  if (!(await rateLimit("teklif", ipFrom(await headers()), 5, 3600))) redirect("/kurumsal?hata=1#form");
   if (dbConfigured()) {
     const sql = await db();
     await sql`INSERT INTO quotes (name, company, phone, email, qty, message) VALUES (${d.name}, ${d.company || null}, ${d.phone}, ${d.email || null}, ${d.qty ?? null}, ${d.message || null})`;

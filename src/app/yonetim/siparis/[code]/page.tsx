@@ -4,14 +4,14 @@ import PatchArt, { type ArtSpec } from "@/components/PatchArt";
 import { requireAdmin } from "@/lib/admin";
 import { STATUSES, getOrder, orderToken, statusLabel } from "@/lib/orders";
 import { tl } from "@/lib/pricing";
-import { updateOrder } from "../../actions";
+import { updateOrder, uploadProof } from "../../actions";
 
 type Item = { kind: "product" | "custom"; art?: ArtSpec; note?: string; fileUrl?: string; fileName?: string; spec?: Record<string, unknown> };
 
-export default async function Page({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ ok?: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ ok?: string; hata?: string }> }) {
   await requireAdmin();
   const { code } = await params;
-  const { ok } = await searchParams;
+  const { ok, hata } = await searchParams;
   const o = await getOrder(code);
   if (!o) notFound();
   const c = o.customer;
@@ -25,6 +25,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <span className={`pill ${o.status}`}>{statusLabel(o.status)}</span>
       </div>
       {ok && <div className="alert ok" style={{ marginTop: 12 }}>Güncellendi.</div>}
+      {hata === "onizleme" && <div className="alert err" style={{ marginTop: 12 }}>Önizleme PNG, JPG veya WEBP olmalı (en fazla 8 MB).</div>}
+      {hata === "blob" && <div className="alert err" style={{ marginTop: 12 }}>Vercel Blob bağlı değil (BLOB_READ_WRITE_TOKEN).</div>}
       <div className="grid g2" style={{ marginTop: 18, alignItems: "start" }}>
         <div className="grid" style={{ gap: 16 }}>
           <div className="card">
@@ -72,6 +74,24 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </div>
         </div>
         <div className="grid" style={{ gap: 16 }}>
+          <form action={uploadProof} className="card">
+            <h3>Tasarım önizlemesi</h3>
+            {o.proof_url && (
+              <div style={{ marginBottom: 12 }}>
+                <img src={o.proof_url} alt="Gönderilen önizleme" style={{ maxHeight: 220, borderRadius: 10 }} />
+                <div className="small" style={{ marginTop: 6 }}>
+                  Durum: <b>{o.approval === "onaylandi" ? "Müşteri onayladı" : o.approval === "revizyon" ? "Revizyon istendi (geçmişe bakın)" : "Müşteri onayı bekleniyor"}</b>
+                </div>
+              </div>
+            )}
+            <input type="hidden" name="code" value={o.code} />
+            <label className="field"><span className="label">{o.proof_url ? "Yeni önizleme" : "Önizleme görseli"}</span>
+              <input type="file" name="proof" accept="image/png,image/jpeg,image/webp" required /></label>
+            <label className="field"><span className="label">Müşteriye not</span>
+              <textarea name="proofNote" maxLength={600} placeholder="Örn. Küçük yazıyı okunur olması için 1 mm kalınlaştırdık." /></label>
+            <button className="btn block">Önizlemeyi gönder (durum: tasarım onayı)</button>
+            <p className="small muted" style={{ marginTop: 8 }}>Müşteriye e-posta gider; sipariş sayfasından onaylar veya revizyon ister. Onaylayınca sipariş &quot;Üretimde&quot; olur.</p>
+          </form>
           <form action={updateOrder} className="card">
             <h3>Durumu güncelle</h3>
             <input type="hidden" name="code" value={o.code} />

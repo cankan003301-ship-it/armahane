@@ -27,6 +27,16 @@ async function ensureSchema(sql: Sql) {
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
   await sql`CREATE INDEX IF NOT EXISTS orders_created_idx ON orders (created_at DESC)`;
+  // Tasarım onayı (v2)
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS proof_url TEXT`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS proof_note TEXT`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval TEXT`;
+  // Basit hız sınırı sayaçları (v2)
+  await sql`CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY,
+    window_start TIMESTAMPTZ NOT NULL,
+    count INTEGER NOT NULL
+  )`;
   await sql`CREATE TABLE IF NOT EXISTS quotes (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,

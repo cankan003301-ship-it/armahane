@@ -3,9 +3,13 @@ import { CheckoutSchema, UserError, createOrder, orderToken } from "@/lib/orders
 import { dbConfigured } from "@/lib/db";
 import { paytrConfigured } from "@/lib/paytr";
 import { mailOrderCreated } from "@/lib/mail";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: Request) {
   if (!dbConfigured()) return NextResponse.json({ error: "Sipariş sistemi henüz kurulmadı." }, { status: 503 });
+  if (!(await rateLimit("siparis", clientIp(req), 10, 3600))) {
+    return NextResponse.json({ error: "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin veya WhatsApp'tan yazın." }, { status: 429 });
+  }
   const body = await req.json().catch(() => null);
   const parsed = CheckoutSchema.safeParse(body);
   if (!parsed.success) {
