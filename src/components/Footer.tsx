@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CATEGORIES } from "@/data/catalog";
+import { LANDINGS } from "@/data/landings";
 import { SITE, whatsappLink } from "@/lib/site";
 import { SHIPPING } from "@/lib/pricing";
 import { LogoMark } from "./Logo";
@@ -20,8 +21,14 @@ export default function Footer() {
           <ul>
             <li><Link href="/arma-tasarla">Arma Tasarla</Link></li>
             <li><Link href="/urunler">Hazır Armalar</Link></li>
-            {CATEGORIES.slice(0, 4).map((c) => (
+            {CATEGORIES.slice(0, 3).map((c) => (
               <li key={c.slug}><Link href={`/koleksiyon/${c.slug}`}>{c.name}</Link></li>
+            ))}
+          </ul>
+          <h4 style={{ marginTop: 18 }}>Kullanım alanları</h4>
+          <ul>
+            {LANDINGS.map((l) => (
+              <li key={l.slug}><Link href={`/${l.slug}`}>{l.h1}</Link></li>
             ))}
           </ul>
         </div>

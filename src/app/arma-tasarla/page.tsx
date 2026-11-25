@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ArmaDesigner from "@/components/ArmaDesigner";
 import { getProduct } from "@/data/catalog";
+import { getLanding } from "@/data/landings";
 import { SIZE_TIERS } from "@/lib/pricing";
 
 export const metadata: Metadata = {
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/arma-tasarla" },
 };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ ornek?: string }> }) {
-  const ornek = (await searchParams).ornek;
-  const base = ornek ? getProduct(ornek) : null;
+export default async function Page({ searchParams }: { searchParams: Promise<{ ornek?: string; alan?: string }> }) {
+  const { ornek, alan } = await searchParams;
+  const product = ornek ? getProduct(ornek) : null;
+  const landing = alan ? getLanding(alan) : null;
+  const base = product ?? (landing ? { art: landing.art, sizeCm: landing.examples[0].cm } : null);
   return (
     <section className="section" style={{ paddingTop: 32 }}>
       <div className="wrap">
